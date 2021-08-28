@@ -28,6 +28,8 @@ import qualified Language.LSP.Types         as J
 import qualified Language.LSP.Types.Lens    as J
 import qualified Language.LSP.VFS           as VFS
 import qualified Text.Fuzzy                 as Fuzzy
+import qualified Data.Typeable.Extra as VFS
+import qualified Language.LSP.VFS as VFS
 
 -- ---------------------------------------------------------------------
 
@@ -163,9 +165,16 @@ completion _ide _ complParams = do
                     | "{-# LANGUAGE" `T.isPrefixOf` VFS.fullLine pfix
                     = J.List $ map buildCompletion
                         (Fuzzy.simpleFilter (VFS.prefixText pfix) allPragmas)
+                    -- if there already is a closing bracket - complete without one
+                    | isPragmaPrefix (VFS.fullLine pfix) && "}" `T.isSuffixOf` VFS.fullLine pfix
+                    = J.List $ map (\(a, b, c) -> mkPragmaCompl a b c) (validPragmas Nothing)
+                    -- if there is no closing bracket - complete with one
+                    | isPragmaPrefix (VFS.fullLine pfix)
+                    = J.List $ map (\(a, b, c) -> mkPragmaCompl a b c) (validPragmas (Just "}"))
                     | otherwise
-                    = J.List [buildLanguageSnippetCompletion]
+                    = J.List []
                 result Nothing = J.List []
+                isPragmaPrefix line = "{-#" `T.isPrefixOf` line
                 buildCompletion p =
                     J.CompletionItem
                       { _label = p,
@@ -186,28 +195,32 @@ completion _ide _ complParams = do
                         _command = Nothing,
                         _xdata = Nothing
                       }
-                buildLanguageSnippetCompletion =                    
-                  J.CompletionItem
-                      { _label = "language",
-                        _kind = Just J.CiKeyword,
-                        _tags = Nothing,
-                        _detail = Just "{-# LANGUAGE #-}",
-                        _documentation = Nothing,
-                        _deprecated = Nothing,
-                        _preselect = Nothing,
-                        _sortText = Nothing,
-                        _filterText = Nothing,
-                        _insertText = Just "{-# LANGUAGE ${1:extension} #-}",
-                        _insertTextFormat = (Just J.Snippet),
-                        _insertTextMode = Nothing,
-                        _textEdit = Nothing,
-                        _additionalTextEdits = Nothing,
-                        _commitCharacters = Nothing,
-                        _command = Nothing,
-                        _xdata = Nothing
-                      }
         _ -> return $ J.List []
 -----------------------------------------------------------------------
+validPragmas :: Maybe T.Text -> [(T.Text, T.Text, T.Text)]
+validPragmas mSuffix =
+  [ ("LANGUAGE ${1:extension} -#" <> suffix         , "LANGUAGE",           "{-# LANGUAGE -#}")
+  , ("OPTIONS_GHC -${1:option} -#" <> suffix        , "OPTIONS_GHC",        "{-# OPTIONS_GHC -#}")
+  , ("INLINE ${1:function} -#" <> suffix            , "INLINE",             "{-# INLINE -#}")
+  , ("NOINLINE ${1:function} -#" <> suffix          , "NOINLINE",           "{-# NOINLINE -#}")
+  , ("INLINABLE ${1:function} -#"<> suffix          , "INLINABLE",          "{-# INLINABLE -#}")
+  , ("WARNING ${1:message} -#" <> suffix            , "WARNING",            "{-# WARNING -#}")
+  , ("DEPRECATED ${1:message} -#" <> suffix         , "DEPRECATED",         "{-# DEPRECATED  -#}")
+  , ("ANN ${1:annotation} -#" <> suffix             , "ANN",                "{-# ANN -#}")
+  , ("RULES -#}" <> suffix                          , "RULES",              "{-# RULES -#}")
+  , ("SPECIALIZE ${1:function} -#" <> suffix        , "SPECIALIZE",         "{-# SPECIALIZE -#}")
+  , ("SPECIALIZE INLINE ${1:function} -#"<> suffix  , "SPECIALIZE INLINE",  "{-# SPECIALIZE INLINE -#}")
+  ]
+  where suffix = case mSuffix of
+                  (Just s) -> s
+                  Nothing -> ""
+
+
+mkPragmaCompl :: T.Text -> T.Text -> T.Text -> J.CompletionItem
+mkPragmaCompl insertText label detail =
+  J.CompletionItem label (Just J.CiKeyword) Nothing (Just detail)
+    Nothing Nothing Nothing Nothing Nothing (Just insertText) (Just J.Snippet)
+    Nothing Nothing Nothing Nothing Nothing Nothing
 
 -- | Find first line after the last file header pragma
 -- Defaults to line 0 if the file contains no shebang(s), OPTIONS_GHC pragma(s), or LANGUAGE pragma(s)
