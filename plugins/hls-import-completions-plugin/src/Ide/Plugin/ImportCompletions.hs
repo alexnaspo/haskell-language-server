@@ -40,6 +40,7 @@ descriptor plId = (defaultPluginDescriptor plId)
   }
 
 
+-- TODO - add boolean check to only filter on
 completion :: IdeState
     -> PluginId
     -> J.CompletionParams
@@ -58,8 +59,6 @@ completion _ide plId complParams = do
                 let strs =  maybe [] (map moduleNameString) hello
                 return $ J.List $ map mkCompl strs
               _ -> return $ J.List []
-            -- fmap result2 $ VFS.getCompletionPrefix position cnts
-            -- fmap result $ VFS.getCompletionPrefix position cnts
         _ -> return $ J.List []
 
 

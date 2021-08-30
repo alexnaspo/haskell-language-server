@@ -531,7 +531,7 @@ getCompletions
     -> ClientCapabilities
     -> CompletionsConfig
     -> IO [CompletionItem]
-getCompletions plId ideOpts CC {allModNamesAsNS, anyQualCompls, unqualCompls, qualCompls, importableModules}
+getCompletions plId ideOpts CC {allModNamesAsNS, anyQualCompls, unqualCompls, qualCompls}
                maybe_parsed (localBindings, bmapping) prefixInfo caps config = do
   let VFS.PosPrefixInfo { fullLine, prefixModule, prefixText } = prefixInfo
       enteredQual = if T.null prefixModule then "" else prefixModule <> "."
@@ -606,7 +606,6 @@ getCompletions plId ideOpts CC {allModNamesAsNS, anyQualCompls, unqualCompls, qu
         , Fuzzy.test fullPrefix label
         ]
 
-      filtImportCompls = filtListWith (mkImportCompl enteredQual) importableModules
       filtPragmaCompls = filtListWithSnippet mkPragmaCompl validPragmas
       filtOptsCompls   = filtListWith mkExtCompl
       filtKeywordCompls
@@ -620,10 +619,10 @@ getCompletions plId ideOpts CC {allModNamesAsNS, anyQualCompls, unqualCompls, qu
         | otherwise = s:ss
 
   if
-    | "import " `T.isPrefixOf` fullLine
-    -> return filtImportCompls
     -- we leave this condition here to avoid duplications and return empty list
     -- since HLS implements this completion (#haskell-language-server/pull/662)
+    | "import " `T.isPrefixOf` fullLine
+    -> return []
     | "{-# language" `T.isPrefixOf` T.toLower fullLine
     -> return []
     | "{-# options_ghc" `T.isPrefixOf` T.toLower fullLine

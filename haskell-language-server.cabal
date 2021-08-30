@@ -161,6 +161,11 @@ flag pragmas
   default:     True
   manual:      True
 
+flag importCompletions
+  description: Enable importCompletions plugin
+  default:     True
+  manual:      True  
+
 flag splice
   description: Enable splice plugin
   default:     True
@@ -258,6 +263,11 @@ common pragmas
     build-depends: hls-pragmas-plugin ^>=1.0.0.0
     cpp-options: -Dpragmas
 
+common importCompletions
+  if flag(importCompletions) || flag(all-plugins)
+    build-depends: hls-import-completions-plugin ^>=1.0.0.0
+    cpp-options: -DimportCompletions    
+
 common splice
   if flag(splice) || flag(all-plugins)
     build-depends: hls-splice-plugin ^>=1.0.0.1
@@ -305,6 +315,7 @@ executable haskell-language-server
                     , tactic
                     , hlint
                     , moduleName
+                    , importCompletions
                     , pragmas
                     , splice
                     , floskell
@@ -469,6 +480,8 @@ test-suite func-test
     cpp-options: -DmoduleName
   if flag(pragmas) || flag(all-plugins)
     cpp-options: -Dpragmas
+  if flag(importCompletions) || flag(all-plugins)
+    cpp-options: -DimportCompletions
   if flag(splice) || flag(all-plugins)
     cpp-options: -Dsplice
 

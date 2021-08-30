@@ -10,6 +10,7 @@ import           Development.IDE                   (IdeState)
 import           Development.IDE.Plugin.HLS.GhcIde as GhcIde
 import           Ide.Plugin.Example                as Example
 import           Ide.Plugin.Example2               as Example2
+import           Ide.Plugin.ImportCompletions      as ImportCompletions
 
 -- haskell-language-server optional plugins
 
@@ -103,6 +104,9 @@ idePlugins includeExamples = pluginDescToIdePlugins allPlugins
     basePlugins =
 #if pragmas
       Pragmas.descriptor  "pragmas" :
+#endif
+#if pragmas
+      ImportCompletions.descriptor "importCompletions" :
 #endif
 #if floskell
       Floskell.descriptor "floskell" :

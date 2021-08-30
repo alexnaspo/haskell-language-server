@@ -21,6 +21,7 @@ packages:
         --  ./plugins/hls-splice-plugin
          ./plugins/hls-floskell-plugin
          ./plugins/hls-pragmas-plugin
+         ./pulgins-hls-import-completions-plugin
          ./plugins/hls-module-name-plugin
          ./plugins/hls-ormolu-plugin
          ./plugins/hls-call-hierarchy-plugin

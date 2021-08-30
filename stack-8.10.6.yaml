@@ -12,6 +12,7 @@ packages:
   - ./plugins/hls-call-hierarchy-plugin
   - ./plugins/hls-class-plugin
   - ./plugins/hls-haddock-comments-plugin
+  - ./plugins/hls-import-completions-plugin
   - ./plugins/hls-eval-plugin
   - ./plugins/hls-explicit-imports-plugin
   - ./plugins/hls-refine-imports-plugin
@@ -26,6 +27,7 @@ packages:
   - ./plugins/hls-pragmas-plugin
   - ./plugins/hls-module-name-plugin
   - ./plugins/hls-ormolu-plugin
+  - ./plugins/hls-import-completions-plugin
 
 ghc-options:
   "$everything": -haddock
