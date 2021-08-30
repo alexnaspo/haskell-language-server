@@ -207,11 +207,10 @@ completionTests =
         item ^. L.kind @?= Just CiKeyword
         item ^. L.insertTextFormat @?= Just Snippet
         item ^. L.insertText @?= Just "LANGUAGE ${1:extension} #-}"
-        item ^. L.detail @?= Just "{-# LANGUAGE #-}"
 
-  , testCase "completes pragmas with existing closing bracket" $ runSessionWithServer pragmasPlugin testDataDir $ do
+  , testCase "completes pragmas no close" $ runSessionWithServer pragmasPlugin testDataDir $ do
       doc <- openDoc "Completion.hs" "haskell"
-      let te = TextEdit (Range (Position 0 4) (Position 0 33)) ""
+      let te = TextEdit (Range (Position 0 4) (Position 0 24)) ""
       _ <- applyEdit doc te
       compls <- getCompletions doc (Position 0 4)
       let item = head $ filter ((== "LANGUAGE") . (^. L.label)) compls
@@ -219,8 +218,7 @@ completionTests =
         item ^. L.label @?= "LANGUAGE"
         item ^. L.kind @?= Just CiKeyword
         item ^. L.insertTextFormat @?= Just Snippet
-        item ^. L.insertText @?= Just "LANGUAGE ${1:extension} #-"
-        item ^. L.detail @?= Just "{-# LANGUAGE #-}"
+        item ^. L.insertText @?= Just "LANGUAGE ${1:extension}"
 
   , testCase "completes options pragma" $ runSessionWithServer pragmasPlugin testDataDir $ do
       doc <- openDoc "Completion.hs" "haskell"
