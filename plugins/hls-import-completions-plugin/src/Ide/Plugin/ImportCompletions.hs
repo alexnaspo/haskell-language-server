@@ -53,14 +53,19 @@ completion _ide plId complParams = do
     liftIO $ fmap (Right . J.InL) $ case (contents, uriToFilePath' uri) of
         (Just cnts, Just _path) -> do
             sess <- runAction "ImportCompletions" _ide $ use GhcSession (toNormalizedFilePath' _path)
-            case sess of
-              (Just sess) -> do
-                hello <- envVisibleModuleNames sess
-                let strs =  maybe [] (map moduleNameString) hello
-                return $ J.List $ map mkCompl strs
+            isImportPrefix <- isImportModulePreFix <$> VFS.getCompletionPrefix position cnts
+            case (sess, isImportPrefix) of
+              (Just sess, True) -> do
+                mModules <- envVisibleModuleNames sess
+                let importModules =  maybe [] (map moduleNameString) mModules
+                return $ J.List $ map mkCompl importModules
               _ -> return $ J.List []
         _ -> return $ J.List []
 
+isImportModulePreFix :: Maybe VFS.PosPrefixInfo -> Bool
+isImportModulePreFix (Just pfix) = 
+  "import " `T.isPrefixOf` VFS.fullLine pfix
+isImportModulePreFix Nothing = False
 
 mkCompl :: String -> J.CompletionItem
 mkCompl label =
