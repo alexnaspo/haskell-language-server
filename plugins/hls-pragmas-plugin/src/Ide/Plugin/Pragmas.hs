@@ -11,7 +11,7 @@ module Ide.Plugin.Pragmas
   ) where
 
 import           Control.Applicative        ((<|>))
-import           Control.Lens               hiding (List)
+import           Control.Lens               hiding (use, List)
 import           Control.Monad              (join)
 import           Control.Monad.IO.Class     (MonadIO (liftIO))
 import           Data.Char                  (isSpace)
@@ -28,6 +28,8 @@ import qualified Language.LSP.Types         as J
 import qualified Language.LSP.Types.Lens    as J
 import qualified Language.LSP.VFS           as VFS
 import qualified Text.Fuzzy                 as Fuzzy
+import Development.IDE.Plugin.Completions.Types 
+import Ide.Plugin.Config
 
 -- ---------------------------------------------------------------------
 
@@ -150,56 +152,36 @@ allPragmas =
 
 -- ---------------------------------------------------------------------
 
+showModName :: ModuleName -> T.Text
+showModName = T.pack . moduleNameString
+
 flags :: [T.Text]
 flags = map (T.pack . stripLeading '-') $ flagsForCompletion False
 
-completion :: PluginMethodHandler IdeState 'J.TextDocumentCompletion
-completion _ide _ complParams = do
+completion :: IdeState
+    -> PluginId
+    -> J.CompletionParams
+    -> LSP.LspM Config (Either J.ResponseError (J.ResponseResult J.TextDocumentCompletion))
+completion _ide plId complParams = do
     let (J.TextDocumentIdentifier uri) = complParams ^. J.textDocument
         position = complParams ^. J.position
+        fp = uriToFilePath' uri
     contents <- LSP.getVirtualFile $ toNormalizedUri uri
-    fmap (Right . J.InL) $ case (contents, uriToFilePath' uri) of
-        (Just cnts, Just _path) ->
-            result <$> VFS.getCompletionPrefix position cnts
-            where
-                result (Just pfix)
-                    | "{-# LANGUAGE" `T.isPrefixOf` VFS.fullLine pfix
-                    = J.List $ map buildCompletion
-                        (Fuzzy.simpleFilter (VFS.prefixText pfix) allPragmas)
-                    | "{-# options_ghc" `T.isPrefixOf` T.toLower (VFS.fullLine pfix)
-                    = J.List $ map mkExtCompl
-                        (Fuzzy.simpleFilter (VFS.prefixText pfix) flags)
-                    -- if there already is a closing bracket - complete without one
-                    | isPragmaPrefix (VFS.fullLine pfix) && "}" `T.isSuffixOf` VFS.fullLine pfix
-                    = J.List $ map (\(a, b, c) -> mkPragmaCompl a b c) (validPragmas Nothing)
-                    -- if there is no closing bracket - complete with one
-                    | isPragmaPrefix (VFS.fullLine pfix)
-                    = J.List $ map (\(a, b, c) -> mkPragmaCompl a b c) (validPragmas (Just "}"))
-                    | otherwise
-                    = J.List []
-                result Nothing = J.List []
-                isPragmaPrefix line = "{-#" `T.isPrefixOf` line
-                buildCompletion p =
-                    J.CompletionItem
-                      { _label = p,
-                        _kind = Just J.CiKeyword,
-                        _tags = Nothing,
-                        _detail = Nothing,
-                        _documentation = Nothing,
-                        _deprecated = Nothing,
-                        _preselect = Nothing,
-                        _sortText = Nothing,
-                        _filterText = Nothing,
-                        _insertText = Nothing,
-                        _insertTextFormat = Nothing,
-                        _insertTextMode = Nothing,
-                        _textEdit = Nothing,
-                        _additionalTextEdits = Nothing,
-                        _commitCharacters = Nothing,
-                        _command = Nothing,
-                        _xdata = Nothing
-                      }
+
+    liftIO $ fmap (Right . J.InL) $ case (contents, uriToFilePath' uri) of
+        (Just cnts, Just _path) -> do
+            x <- runAction "Pragmas" _ide $ use GhcSession (toNormalizedFilePath' _path)
+            case x of
+              (Just sess) -> do
+                hello <- (envVisibleModuleNames sess)
+                let strs =  maybe [] (map moduleNameString) hello
+                putStrLn $ show strs
+              _ -> putStrLn"goodbye"
+            -- fmap result2 $ VFS.getCompletionPrefix position cnts
+            -- fmap result $ VFS.getCompletionPrefix position cnts
+            return $ J.List []
         _ -> return $ J.List []
+
 -----------------------------------------------------------------------
 validPragmas :: Maybe T.Text -> [(T.Text, T.Text, T.Text)]
 validPragmas mSuffix =
@@ -268,3 +250,11 @@ mkExtCompl label =
   J.CompletionItem label (Just J.CiKeyword) Nothing Nothing
     Nothing Nothing Nothing Nothing Nothing Nothing Nothing
     Nothing Nothing Nothing Nothing Nothing Nothing
+
+
+
+    -- testThing x = do
+                --   a <- runAction "Pragmas" _ide $ use GhcSession (toNormalizedFilePath' _path)
+                --    <- putStrLn $ show a
+                --   _ <- putStrLn x
+                --   "hello"
