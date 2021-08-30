@@ -19,7 +19,7 @@ import           Data.List.Extra                          as List hiding
                                                                   (stripPrefix)
 import qualified Data.Map                                 as Map
 
-import           Data.Maybe                               (fromMaybe, isJust,
+import           Data.Maybe                               (isJust,
                                                            isNothing,
                                                            listToMaybe,
                                                            mapMaybe)
@@ -284,14 +284,6 @@ mkModCompl label =
   CompletionItem label (Just CiModule) Nothing Nothing
     Nothing Nothing Nothing Nothing Nothing Nothing Nothing
     Nothing Nothing Nothing Nothing Nothing Nothing
-
-mkImportCompl :: T.Text -> T.Text -> CompletionItem
-mkImportCompl enteredQual label =
-  CompletionItem m (Just CiModule) Nothing (Just label)
-    Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-    Nothing Nothing Nothing Nothing Nothing Nothing
-  where
-    m = fromMaybe "" (T.stripPrefix enteredQual label)
 
 mkExtCompl :: T.Text -> CompletionItem
 mkExtCompl label =
