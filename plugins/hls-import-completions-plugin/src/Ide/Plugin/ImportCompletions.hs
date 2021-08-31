@@ -16,7 +16,6 @@ import           Control.Monad              (join)
 import           Control.Monad.IO.Class     (MonadIO (liftIO))
 import           Data.Char                  (isSpace)
 import qualified Data.HashMap.Strict        as H
-import           Data.List
 import           Data.List.Extra            (nubOrdOn)
 import           Data.Maybe                 (catMaybes, listToMaybe)
 import qualified Data.Text                  as T
@@ -40,6 +39,7 @@ descriptor plId = (defaultPluginDescriptor plId)
   }
 
 
+
 -- TODO - add boolean check to only filter on
 completion :: IdeState
     -> PluginId
@@ -53,22 +53,33 @@ completion _ide plId complParams = do
     liftIO $ fmap (Right . J.InL) $ case (contents, uriToFilePath' uri) of
         (Just cnts, Just _path) -> do
             sess <- runAction "ImportCompletions" _ide $ use GhcSession (toNormalizedFilePath' _path)
+            mPreFix <- VFS.getCompletionPrefix position cnts
             isImportPrefix <- isImportModulePreFix <$> VFS.getCompletionPrefix position cnts
-            case (sess, isImportPrefix) of
-              (Just sess, True) -> do
+            case (sess, isImportPrefix, mPreFix) of
+              (Just sess, True, Just preFix) -> do
+                let VFS.PosPrefixInfo { fullLine, prefixModule, prefixText } = preFix
+                    enteredQual = if T.null prefixModule then "" else prefixModule <> "."
+                    fullPrefix  = enteredQual <> prefixText
                 mModules <- envVisibleModuleNames sess
                 let importModules =  maybe [] (map moduleNameString) mModules
-                return $ J.List $ map mkCompl importModules
+                return $ J.List $ filtListWith mkCompl (map T.pack importModules) fullPrefix enteredQual
               _ -> return $ J.List []
         _ -> return $ J.List []
+
+filtListWith :: (T.Text -> J.CompletionItem) -> [T.Text] -> T.Text -> T.Text -> [J.CompletionItem]
+filtListWith f list fullPrefix enteredQual =
+  [ f label
+  | label <- Fuzzy.simpleFilter fullPrefix $ list
+  , enteredQual `T.isPrefixOf` label
+  ]
 
 isImportModulePreFix :: Maybe VFS.PosPrefixInfo -> Bool
 isImportModulePreFix (Just pfix) = 
   "import " `T.isPrefixOf` VFS.fullLine pfix
 isImportModulePreFix Nothing = False
 
-mkCompl :: String -> J.CompletionItem
+mkCompl :: T.Text -> J.CompletionItem
 mkCompl label =
-  J.CompletionItem (T.pack label) (Just J.CiKeyword) Nothing Nothing
+  J.CompletionItem label (Just J.CiKeyword) Nothing Nothing
     Nothing Nothing Nothing Nothing Nothing Nothing Nothing
     Nothing Nothing Nothing Nothing Nothing Nothing
