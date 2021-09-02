@@ -14,6 +14,7 @@ module Test.Hls
     goldenGitDiff,
     goldenWithHaskellDoc,
     goldenWithHaskellDocFormatter,
+    hlsCommand,
     def,
     runSessionWithServer,
     runSessionWithServerFormatter,
@@ -65,6 +66,9 @@ import           Test.Tasty.ExpectedFailure
 import           Test.Tasty.Golden
 import           Test.Tasty.HUnit
 import           Test.Tasty.Ingredients.Rerun
+import           Data.Maybe         (fromMaybe)
+import           System.Environment (lookupEnv)
+import           System.IO.Unsafe   (unsafePerformIO)
 
 -- | Run 'defaultMainWithRerun', limiting each single test case running at most 10 minutes
 defaultTestRunner :: TestTree -> IO ()
@@ -195,3 +199,24 @@ waitForProgressDone = loop
         _ -> Nothing
       done <- null <$> getIncompleteProgressSessions
       unless done loop
+
+logFilePath :: String
+logFilePath = "hls-" ++ show ghcVersion ++ ".log"
+
+-- | The command to execute the version of hls for the current compiler.
+--
+-- Both @stack test@ and @cabal new-test@ setup the environment so @hls@ is
+-- on PATH. Cabal seems to respond to @build-tool-depends@ specifically while
+-- stack just puts all project executables on PATH.
+hlsCommand :: String
+{-# NOINLINE hlsCommand #-}
+hlsCommand = unsafePerformIO $ do
+  testExe <- fromMaybe "haskell-language-server" <$> lookupEnv "HLS_TEST_EXE"
+  pure $ testExe ++ " --lsp -d -j4 -l test-logs/" ++ logFilePath
+
+hlsCommandVomit :: String
+hlsCommandVomit = hlsCommand ++ " --vomit"
+
+hlsCommandExamplePlugin :: String
+hlsCommandExamplePlugin = hlsCommand ++ " --example"
+

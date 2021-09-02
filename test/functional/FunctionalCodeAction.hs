@@ -20,7 +20,7 @@ import           Test.Hls
 import           Test.Hspec.Expectations
 
 import           System.FilePath                 ((</>))
-import           Test.Hls.Command
+import           Test.Hls
 
 {-# ANN module ("HLint: ignore Reduce duplication"::String) #-}
 
