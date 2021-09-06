@@ -6,23 +6,19 @@ module Development.IDE.Types.HscEnvEq
     newHscEnvEqWithImportPaths,
     envImportPaths,
     envPackageExports,
-    envVisibleModuleNames,
     deps
 ) where
 
 
 import           Control.Concurrent.Async      (Async, async, waitCatch)
 import           Control.Concurrent.Strict     (modifyVar, newVar)
-import           Control.DeepSeq               (force)
-import           Control.Exception             (evaluate, mask, throwIO)
+import           Control.Exception             (mask, throwIO)
 import           Control.Monad.Extra           (eitherM, join, mapMaybeM)
 import           Control.Monad.IO.Class
-import           Data.Either                   (fromRight)
 import           Data.Set                      (Set)
 import qualified Data.Set                      as Set
 import           Data.Unique
 import           Development.IDE.GHC.Compat
-import           Development.IDE.GHC.Error     (catchSrcErrors)
 import           Development.IDE.GHC.Util      (lookupPackageConfig)
 import           Development.IDE.Graph.Classes
 import           Development.IDE.Types.Exports (ExportsMap, createExportsMap)
@@ -49,7 +45,6 @@ data HscEnvEq = HscEnvEq
         -- ^ If Just, import dirs originally configured in this env
         --   If Nothing, the env import dirs are unaltered
     , envPackageExports     :: IO ExportsMap
-    , envVisibleModuleNames :: IO (Maybe [ModuleName])
         -- ^ 'listVisibleModuleNames' is a pure function,
         -- but it could panic due to a ghc bug: https://github.com/haskell/haskell-language-server/issues/1365
         -- So it's wrapped in IO here for error handling
@@ -98,14 +93,6 @@ newHscEnvEqWithImportPaths envImportPaths hscEnv deps = do
         modIfaces <- mapMaybeM doOne targets
         return $ createExportsMap modIfaces
 
-    -- similar to envPackageExports, evaluated lazily
-    envVisibleModuleNames <- onceAsync $
-      fromRight Nothing
-        <$> catchSrcErrors
-          dflags
-          "listVisibleModuleNames"
-          (evaluate . force . Just $ oldListVisibleModuleNames dflags)
-
     return HscEnvEq{..}
 
 -- | Wrap an 'HscEnv' into an 'HscEnvEq'.
@@ -132,8 +119,8 @@ instance Eq HscEnvEq where
   a == b = envUnique a == envUnique b
 
 instance NFData HscEnvEq where
-  rnf (HscEnvEq a b c d _ _) =
-      -- deliberately skip the package exports map and visible module names
+  rnf (HscEnvEq a b c d _) =
+      -- deliberately skip the package exports map
       rnf (hashUnique a) `seq` b `seq` c `seq` rnf d
 
 instance Hashable HscEnvEq where
