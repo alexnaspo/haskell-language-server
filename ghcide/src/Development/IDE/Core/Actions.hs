@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 module Development.IDE.Core.Actions
 ( getAtPoint
+, getSignatureHelp
 , getDefinition
 , getTypeDefinition
 , highlightAtPoint
@@ -13,8 +14,10 @@ import           Control.Monad.Extra                  (mapMaybeM)
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Maybe
 import qualified Data.HashMap.Strict                  as HM
+import qualified Data.Map.Strict                      as M
 import           Data.Maybe
 import qualified Data.Text                            as T
+import           Data.Either
 import           Data.Tuple.Extra
 import           Development.IDE.Core.OfInterest
 import           Development.IDE.Core.PluginUtils
@@ -31,7 +34,12 @@ import qualified HieDb
 import           Language.LSP.Protocol.Types          (DocumentHighlight (..),
                                                        SymbolInformation (..),
                                                        normalizedFilePathToUri,
-                                                       uriToNormalizedFilePath)
+                                                       uriToNormalizedFilePath, SignatureHelp (SignatureHelp), TextDocumentIdentifier, SignatureInformation (SignatureInformation))
+
+import Development.IDE.GHC.Error (realSrcSpanToRange)
+import Development.IDE.Spans.AtPoint (getNamesAtPoint)
+import qualified Data.Map as Map
+import Data.Set (toList)
 
 
 -- | Eventually this will lookup/generate URIs for files in dependencies, but not in the
@@ -65,6 +73,40 @@ getAtPoint file pos = runMaybeT $ do
 
   !pos' <- MaybeT (return $ fromCurrentPosition mapping pos)
   MaybeT $ liftIO $ fmap (first (toCurrentRange mapping =<<)) <$> AtPoint.atPoint opts hf dkMap env pos'
+
+
+getSignatureHelp :: NormalizedFilePath -> Position -> IdeAction (Maybe SignatureHelp)
+getSignatureHelp file pos = runMaybeT $ do
+  ide <- ask
+  opts <- liftIO $ getIdeOptionsIO ide
+
+  (hf@(HAR _ hff _ _ kind), mapping) <- useWithStaleFastMT GetHieAst file
+  (HAR{hieAst}, mapping) <- useWithStaleFastMT GetHieAst file
+  env <- hscEnv . fst <$> useWithStaleFastMT GhcSession file
+  dkMap <- lift $ maybe (DKMap mempty mempty) fst <$> runMaybeT (useWithStaleFastMT GetDocMap file)
+
+  !pos' <- MaybeT (return $ fromCurrentPosition mapping pos)
+
+  let loll = T.pack $ show $ AtPoint.pointCommand hff pos (temp kind)
+  let ns = concat $ AtPoint.pointCommand hff pos (rights . M.keys . getNodeIds)
+  let sigInfo = SignatureInformation loll Nothing Nothing Nothing
+  pure $ SignatureHelp [sigInfo] Nothing Nothing
+  where
+    temp :: HieKind a -> HieAST a -> (T.Text)
+  --   -- temp kind ast = (range ast, T.pack (show (nodeSpan ast)))
+  --   -- (nodeSpan ast) is the entire file
+  --   -- how can I search the span for the previous function?
+  --   -- can I use the mapping to find the last func?
+    -- temp kind ast = T.pack $ show $ getSourceNodeInfo ast
+    getSourceNodeInfo ast = case (Map.lookup SourceInfo (getSourcedNodeInfo (sourcedNodeInfo ast))) of
+      Just a -> toList $ nodeAnnotations a
+      Nothing -> []
+    temp kind ast = T.pack $ show $ getChildren ast      
+    getChildren ast = map getSourceNodeInfo $ nodeChildren ast
+
+
+
+
 
 -- | For each Location, determine if we have the PositionMapping
 -- for the correct file. If not, get the correct position mapping

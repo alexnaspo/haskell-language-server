@@ -486,6 +486,10 @@ instance PluginMethod Request Method_TextDocumentHover where
 instance PluginMethod Request Method_TextDocumentDocumentSymbol where
   handlesRequest = pluginEnabledWithFeature plcSymbolsOn
 
+instance PluginMethod Request Method_TextDocumentSignatureHelp where
+  -- Unconditionally enabled, but should it really be?
+  handlesRequest _ _ _ _ = HandlesRequest
+
 instance PluginMethod Request Method_CompletionItemResolve where
   -- See Note [Resolve in PluginHandlers]
   handlesRequest = pluginEnabledResolve plcCompletionOn
@@ -652,6 +656,11 @@ instance PluginRequestMethod Method_WorkspaceSymbol where
     -- TODO: combine WorkspaceSymbol. Currently all WorkspaceSymbols are dumped
     -- as it is new of lsp-types 2.0.0.0
     combineResponses _ _ _ _ xs = InL $ mconcat $ takeLefts $ toList xs
+
+instance PluginRequestMethod Method_TextDocumentSignatureHelp where
+    -- TODO: combine WorkspaceSymbol. Currently all WorkspaceSymbols are dumped
+    -- as it is new of lsp-types 2.0.0.0
+    combineResponses _ _ _ _ (x :| _) = x
 
 instance PluginRequestMethod Method_TextDocumentCodeLens where
 

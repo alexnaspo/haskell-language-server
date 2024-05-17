@@ -31,6 +31,21 @@ instance Pretty Log where
     LogCompletions msg   -> pretty msg
     LogTypeLenses msg    -> pretty msg
 
+hello :: Int -> Int
+hello a = a
+
+hello2 :: Int -> Int
+hello2 a = a
+
+hello3 :: Int -> Int
+hello3 a = a
+
+hello4 :: Int -> Int
+hello4 a = a
+
+hello5 :: Int -> Int
+hello5 a = a
+
 descriptors :: Recorder (WithPriority Log) -> [PluginDescriptor IdeState]
 descriptors recorder =
   [ descriptor "ghcide-hover-and-symbols",
@@ -52,7 +67,8 @@ descriptor plId = (defaultPluginDescriptor plId desc)
                   <> mkPluginHandler SMethod_TextDocumentDocumentHighlight (\ide _ DocumentHighlightParams{..} ->
                       documentHighlight ide TextDocumentPositionParams{..})
                   <> mkPluginHandler SMethod_TextDocumentReferences references
-                  <> mkPluginHandler SMethod_WorkspaceSymbol wsSymbols,
+                  <> mkPluginHandler SMethod_WorkspaceSymbol wsSymbols
+                  <> mkPluginHandler SMethod_TextDocumentSignatureHelp signatureHelp,
 
     pluginConfigDescriptor = defaultConfigDescriptor
   }
@@ -63,5 +79,5 @@ descriptor plId = (defaultPluginDescriptor plId desc)
 
 hover' :: PluginMethodHandler IdeState Method_TextDocumentHover
 hover' ideState _ HoverParams{..} = do
-    liftIO $ logDebug (ideLogger ideState) "GhcIde.hover entered (ideLogger)" -- AZ
-    hover ideState TextDocumentPositionParams{..}
+  liftIO $ logDebug (ideLogger ideState) "GhcIde.hover entered (ideLogger)" -- AZ
+  hover ideState TextDocumentPositionParams{..}

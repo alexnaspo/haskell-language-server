@@ -12,6 +12,7 @@ module Development.IDE.LSP.HoverDefinition
     , documentHighlight
     , references
     , wsSymbols
+    , signatureHelp
     ) where
 
 import           Control.Monad.Except           (ExceptT)
@@ -51,6 +52,15 @@ wsSymbols :: PluginMethodHandler IdeState Method_WorkspaceSymbol
 wsSymbols ide _ (WorkspaceSymbolParams _ _ query) = liftIO $ do
   logDebug (ideLogger ide) $ "Workspace symbols request: " <> query
   runIdeAction "WorkspaceSymbols" (shakeExtras ide) $ InL . fromMaybe [] <$> workspaceSymbols query
+
+signatureHelp :: PluginMethodHandler IdeState Method_TextDocumentSignatureHelp
+signatureHelp ide _ (SignatureHelpParams tdi@(TextDocumentIdentifier uri) pos mpt msct) = liftIO $ do
+  case uriToFilePath' uri of
+    Just path -> do
+      let filePath = toNormalizedFilePath' path
+      runIdeAction (T.unpack "SignatureHelp") (shakeExtras ide) $ InL . fromMaybe (SignatureHelp [] Nothing Nothing) <$> getSignatureHelp filePath pos
+    -- TODO - should this return an error rather an empty signature help? IF so how?
+    Nothing -> pure $ InL (SignatureHelp [] Nothing Nothing)
 
 foundHover :: (Maybe Range, [T.Text]) -> Hover |? Null
 foundHover (mbRange, contents) =

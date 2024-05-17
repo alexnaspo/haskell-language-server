@@ -239,7 +239,7 @@ defaultArguments recorder logger plugins = Arguments
             { optCheckProject = pure $ checkProject config
             , optCheckParents = pure $ checkParents config
             }
-        , argsLspOptions = def {LSP.optCompletionTriggerCharacters = Just "."}
+        , argsLspOptions = def {LSP.optCompletionTriggerCharacters = Just ".", LSP.optSignatureHelpTriggerCharacters = Just "hhh"}
         , argsDefaultHlsConfig = def
         , argsGetHieDbLoc = getHieDbLoc
         , argsDebouncer = newAsyncDebouncer

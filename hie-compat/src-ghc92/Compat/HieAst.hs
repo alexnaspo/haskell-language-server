@@ -139,6 +139,7 @@ If you select one that corresponds to a binding site, you will need to
 provide a `Scope` and a `Span` for your binding. Both of these are basically
 `SrcSpans`.
 
+-- HERE!!!!!!!!!!!!!
 The `SrcSpan` in the `Scope` is supposed to span over the part of the source
 where the symbol can be legally allowed to occur. For more details on how to
 calculate this, see Note [Capturing Scopes and other non local information]
